@@ -1,8 +1,8 @@
 const Mods = {
 	API: {},
 	DBM: null,
-	version: "3.0.0",
-	lastest_changes: "Revamped the dependencies",
+	version: "3.0.1",
+	lastest_changes: "Added CSV Spreadsheet Actions"
 };
 
 Mods.installModule = function(moduleName) {
@@ -137,6 +137,54 @@ Mods.runBasicAuthRequest = function(url, returnJson = false, username, password,
 		if (callback && typeof callback == "function") callback(err, statusCode, data);
 	});
 };
+
+// RigidStudios - Spreadsheet Mods + Obligatory API
+
+Mods.CSV = {}
+
+Mods.CSV.Read = function(path, key, col) {
+	if (!path) return; // No path, can't read.
+	const fs = require('fs').promises;
+	fs.readFile(path).then(content => {
+		if (content == "") return { data: null };
+		let obj = { data: [], success: false };
+		let split = content.split("\n");
+		let parseComma = new RegExp('/(?!["]),(?!["])/', 'gm');
+		let columns = [];
+		let splitHeader = split[0].split(parseComma);
+		for (const header in splitHeader) {
+			columns.push(header);
+		}
+		split.forEach(c => {
+			let newObj = {};
+			if (c.split(parseComma).length !== columns.length) return obj;
+			c.split(parseComma).forEach((data, i) => {
+				newObj[columns[i]] = data;
+			});
+			obj.data.push(newObj);
+		});
+		if (key && obj.data.filter(x => x[columns[0]] == key).length > 0) {
+			obj.success = true;
+			obj.data = obj.data.filter(x => x[columns[0]] == key);
+			if (!col) {
+				return obj
+			} else if (columns.includes(col)) {
+				obj.data.forEach((data, i) => {
+					obj.data[i] = data[col];
+				});
+			}
+		} else {
+			if (!col) {
+				obj.success = true;
+				return obj;
+			} else if (columns.includes(col)) {
+				obj.data.forEach((data, i) => {
+					obj.data[i] = data[col];
+				});
+			}
+		}
+	});
+}
 
 Mods.jsonPath = function(obj, expr, arg) {
 	//JSONPath 0.8.0 - XPath for JSON
