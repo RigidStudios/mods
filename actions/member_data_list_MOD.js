@@ -359,7 +359,7 @@ Char after Number:<br>
 									break;
 								case 2:
 
-									var num = list5.length;
+									var num = Number(list5.length).toLocaleString();
 									var numbef = this.evalMessage(data.numbefst2, cache)
 									list2.push(num + numbef + " " + st2 + middle + en2 + '\n')
 									break;
