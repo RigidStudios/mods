@@ -1,77 +1,76 @@
 module.exports = {
-	name: "Control Global Data",
-	section: "Deprecated",
+  name: 'Delete Global Data',
 
-	subtitle: function(data) {
-		return `(${data.dataName}) ${data.changeType === "1" ? "+=" : "="} ${data.value}`;
-	},
+  section: 'Deprecated',
 
-	fields: ["dataName", "changeType", "value"],
+  subtitle (data) {
+    return `Data : ${data.dataName ? data.dataName : 'All Data'}`
+  },
 
-	html: function(isEvent, data) {
-		return `
+  fields: ['dataName'],
+
+  html (isEvent, data) {
+    return `
 <div style="padding-top: 8px;">
-	<div style="float: left; width: 50%;">
-		Data Name:<br>
-		<input id="dataName" class="round" type="text">
-	</div>
-	<div style="float: left; width: 45%;">
-		Control Type:<br>
-		<select id="changeType" class="round">
-			<option value="0" selected>Set Value</option>
-			<option value="1">Add Value</option>
-		</select>
-	</div>
-</div><br><br><br>
-<div style="padding-top: 8px;">
-	Value:<br>
-	<input id="value" class="round" type="text" name="is-eval"><br>
-</div>`;
-	},
+  <div style="float: left; width: 80%;">
+    Data Name:<br>
+    <input id="dataName" class="round" placeholder="Leave it blank to delete all data" type="text">
+  </div>
+</div>`
+  },
 
-	init: function() {},
+  init () {
+  },
 
-	action: function(cache) {
-		const data = cache.actions[cache.index];
+  action (cache) {
+    const data = cache.actions[cache.index]
+    const dataName = this.evalMessage(data.dataName, cache)
+    this.getDBM().Globals.delData(dataName)
+    this.callNextAction(cache)
+  },
 
-		const dataName = this.evalMessage(data.dataName, cache);
-		const isAdd = Boolean(data.changeType === "1");
-		let val = this.evalMessage(data.value, cache);
-		try {
-			val = this.eval(val, cache);
-		} catch(e) {
-			this.displayError(data, cache, e);
-		}
+  mod (DBM) {
+    const fs = require('fs')
+    const path = require('path')
+    const filePath = path.join(process.cwd(), 'data', 'globals.json')
+    if (!fs.existsSync(filePath)) {
+      fs.writeFileSync(filePath, '{}')
+    }
+    DBM.Files.data.globals = JSON.parse(fs.readFileSync(filePath))
+    class GlobalsData {
+      delData (name) {
+        if (name && DBM.Files.data.globals[name]) {
+          delete DBM.Files.data.globals[name]
+          DBM.Files.saveData('globals')
+        } else if (!name) {
+          DBM.Files.data.globals = {}
+          DBM.Files.saveData('globals')
+        }
+      }
 
-		const fs = require("fs");
-		const path = require("path");
+      data (name, defaultValue) {
+        if (DBM.Files.data.globals[name] || defaultValue !== undefined) {
+          const data = (DBM.Files.data.globals[name]) ? DBM.Files.data.globals[name] : defaultValue
+          return data
+        }
+        return null
+      }
 
-		const filePath = path.join(process.cwd(), "data", "globals.json");
+      setData (name, value) {
+        if (value !== undefined) {
+          DBM.Files.data.globals[name] = value
+          DBM.Files.saveData('globals')
+        }
+      }
 
-		if(!fs.existsSync(filePath)) {
-			fs.writeFileSync(filePath, "{}");
-		}
-
-		const obj = JSON.parse(fs.readFileSync(filePath, "utf8"));
-
-		if(dataName && val) {
-			if(isAdd) {
-				if(!obj[dataName]) {
-					obj[dataName] = val;
-				} else {
-					obj[dataName] += val;
-				}
-			} else {
-				obj[dataName] = val;
-			}
-			fs.writeFileSync(filePath, JSON.stringify(obj));
-		} else if (dataName && !val) {
-			delete obj[dataName];
-			fs.writeFileSync(filePath, JSON.stringify(obj));
-		}
-
-		this.callNextAction(cache);
-	},
-
-	mod: function() {}
-};
+      addData (name, value) {
+        if (data[name] === undefined) {
+          this.setData(name, value)
+        } else {
+          this.setData(name, this.data(name) + value)
+        }
+      }
+    }
+    DBM.Globals = new GlobalsData()
+  }
+}
